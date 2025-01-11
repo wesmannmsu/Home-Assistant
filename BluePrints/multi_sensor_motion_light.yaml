@@ -1,61 +1,69 @@
-blueprint:
-  name: Motion-activated Light
-  description: Turn on a light when motion is detected on One or more sensors.
+blueprint: 
+  name: Motion Light with Multiple Sensors
+  description: Turns on/off a light based on multiple motion sensors.
   domain: automation
-  source_url: https://github.com/home-assistant/core/blob/dev/homeassistant/components/automation/blueprints/motion_light.yaml
-  author: Home Assistant
   input:
-    motion_entity:
-      name: Motion Sensor
+    sensors:
+      name: Motion Sensors
+      description: List of motion sensors that will trigger the light.
       selector:
         entity:
-          filter:
-            - device_class: occupancy
-              domain: binary_sensor
-              multiple: true  # Allow multiple sensors
-            - device_class: motion
-              domain: binary_sensor
-              multiple: true  # Allow multiple sensors
-    light_target:
-      name: Light
+          domain: binary_sensor
+          multiple: true  # Allow multiple sensors
+    lights:
+      name: Lights to Control
+      description: The lights to turn on/off when motion is detected.
       selector:
-        target:
-          entity:
-            domain: light
-            multiple: true  # Allow multiple lights
-    no_motion_wait:
-      name: Wait time
-      description: Time to leave the light on after last motion is detected.
-      default: 120
+        entity:
+          domain: light
+          multiple: true  # Allow multiple lights
+    delay:
+      name: Delay before turning off the lights (seconds)
+      description: How long to wait before turning off the lights when no motion is detected.
+      default: 60
       selector:
         number:
-          min: 0
-          max: 3600
+          min: 1
+          max: 300
           unit_of_measurement: seconds
+    mode:
+      name: Trigger Mode
+      description: How to trigger the lights when motion is detected.
+      default: 'restart'
+      selector:
+        select:
+          options:
+            - single
+            - restart
+            - queued
+            - parallel
 
-# If motion is detected within the delay,
-# we restart the script.
-mode: restart
-max_exceeded: silent
+trigger:
+  # Trigger when any motion sensor turns on
+  - platform: state
+    entity_id: !input 'sensors'
+    to: 'on'
 
-triggers:
-  trigger: state
-  entity_id: !input motion_entity
-  from: "off"
-  to: "on"
+action:
+  # Turn on the lights
+  - service: light.turn_on
+    target:
+      entity_id: !input 'lights'
 
-actions:
-  - alias: "Turn on the light"
-    action: light.turn_on
-    target: !input light_target
-  - alias: "Wait until there is no motion from device"
-    wait_for_trigger:
-      trigger: state
-      entity_id: !input motion_entity
-      from: "on"
-      to: "off"
-  - alias: "Wait the number of seconds that has been set"
-    delay: !input no_motion_wait
-  - alias: "Turn off the light"
-    action: light.turn_off
-    target: !input light_target
+  # Wait for the delay
+  - delay:
+      seconds: !input 'delay'
+
+  # Check if any motion sensor is still active
+  - condition: state
+    entity_id: !input 'sensors'
+    state: 'off'
+    for:
+      seconds: !input 'delay'
+
+  # Turn off the lights
+  - service: light.turn_off
+    target:
+      entity_id: !input 'lights'
+
+mode: !input 'mode'
