@@ -1,6 +1,6 @@
 blueprint:
   name: Motion-activated Light
-  description: Turn on a light when motion is detected.
+  description: Turn on a light when motion is detected on One or more sensors.
   domain: automation
   source_url: https://github.com/home-assistant/core/blob/dev/homeassistant/components/automation/blueprints/motion_light.yaml
   author: Home Assistant
@@ -12,14 +12,17 @@ blueprint:
           filter:
             - device_class: occupancy
               domain: binary_sensor
+              multiple: true  # Allow multiple sensors
             - device_class: motion
               domain: binary_sensor
+              multiple: true  # Allow multiple sensors
     light_target:
       name: Light
       selector:
         target:
           entity:
             domain: light
+            multiple: true  # Allow lights sensors
     no_motion_wait:
       name: Wait time
       description: Time to leave the light on after last motion is detected.
