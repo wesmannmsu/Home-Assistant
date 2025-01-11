@@ -22,7 +22,7 @@ blueprint:
         target:
           entity:
             domain: light
-            multiple: true  # Allow lights sensors
+            multiple: true  # Allow multiple lights
     no_motion_wait:
       name: Wait time
       description: Time to leave the light on after last motion is detected.
