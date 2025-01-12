@@ -55,11 +55,11 @@ action:
       seconds: !input 'delay'
 
   # Check if any motion sensor is still active
-  - condition: state
-    entity_id: !input 'sensors'
-    state: 'off'
-    for:
-      seconds: !input 'delay'
+  #- condition: state
+  #  entity_id: !input 'sensors'
+  #  state: 'off'
+  #  for:
+  #    seconds: !input 'delay'
 
   # Turn off the lights
   - service: light.turn_off
