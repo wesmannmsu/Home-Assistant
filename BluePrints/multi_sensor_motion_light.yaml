@@ -20,7 +20,7 @@ blueprint:
     delay:
       name: Delay before turning off the lights (seconds)
       description: How long to wait before turning off the lights when no motion is detected.
-      default: 60
+      default: 120
       selector:
         number:
           min: 1
