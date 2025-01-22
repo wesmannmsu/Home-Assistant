@@ -1,0 +1,87 @@
+blueprint:
+  name: Motion Light with Multiple Sensors and Lux Condition
+  description: Turns on/off a light based on multiple motion sensors and a lux threshold.
+  domain: automation
+  input:
+    sensors:
+      name: Motion Sensors
+      description: List of motion sensors that will trigger the light.
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
+    lights:
+      name: Lights to Control
+      description: The lights to turn on/off when motion is detected.
+      selector:
+        entity:
+          domain: light
+          multiple: true
+    delay:
+      name: Delay before turning off the lights (seconds)
+      description: How long to wait before turning off the lights when no motion is detected.
+      default: 120
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: seconds
+    mode:
+      name: Trigger Mode
+      description: How to trigger the lights when motion is detected.
+      default: 'restart'
+      selector:
+        select:
+          options:
+            - single
+            - restart
+            - queued
+            - parallel
+    lux_sensor:
+      name: Lux Sensor
+      description: The sensor to check for ambient light level.
+      selector:
+        entity:
+          domain: sensor
+    lux_threshold:
+      name: Lux Threshold
+      description: The minimum lux level below which the lights will turn on.
+      default: 50
+      selector:
+        number:
+          min: 0
+          unit_of_measurement: lx
+
+trigger:
+  # Trigger when any motion sensor turns on
+  - platform: state
+    entity_id: !input 'sensors'
+    to: 'on'
+
+condition:
+  - condition: template
+    value_template: "{{ states.{{ input.lux_sensor }}|float < input.lux_threshold }}" 
+
+action:
+  # Turn on the lights
+  - service: light.turn_on
+    target:
+      entity_id: !input 'lights'
+
+  # Wait for the delay
+  - delay:
+    seconds: !input 'delay'
+
+  # Check if any motion sensor is still active
+  #- condition: state
+  #  entity_id: !input 'sensors'
+  #  state: 'off'
+  #  for:
+  #    seconds: !input 'delay'
+
+  # Turn off the lights
+  - service: light.turn_off
+    target:
+      entity_id: !input 'lights'
+
+mode: !input 'mode'
