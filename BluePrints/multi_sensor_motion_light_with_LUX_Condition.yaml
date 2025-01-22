@@ -1,6 +1,10 @@
 blueprint:
-  name: Motion Light with Multiple Sensors and Lux Condition
-  description: Turns on/off a light based on multiple motion sensors and a lux threshold.
+  name: Motion Light with Multiple Sensors and Lux Condition (Improved)
+  description: >
+    Turns on/off a light based on multiple motion sensors and a lux threshold.
+    Includes improved lux handling to prevent unnecessary light turn-offs 
+    during the delay period.
+
   domain: automation
   input:
     sensors:
@@ -19,7 +23,9 @@ blueprint:
           multiple: true
     delay:
       name: Delay before turning off the lights (seconds)
-      description: How long to wait before turning off the lights when no motion is detected.
+      description: >
+        How long to wait before turning off the lights when no motion is detected.
+        Lights will remain on during this delay even if lux conditions change.
       default: 120
       selector:
         number:
@@ -45,7 +51,9 @@ blueprint:
           domain: sensor
     lux_threshold:
       name: Lux Threshold
-      description: The minimum lux level below which the lights will turn on.
+      description: >
+        The minimum lux level below which the lights will turn on initially.
+        Subsequent lux changes within the delay period will be ignored.
       default: 50
       selector:
         number:
@@ -53,35 +61,38 @@ blueprint:
           unit_of_measurement: lx
 
 trigger:
-  # Trigger when any motion sensor turns on
   - platform: state
-    entity_id: !input 'sensors'
-    to: 'on'
+    entity_id: !input 'sensors' 
+    to: 'on'  # Trigger when any motion sensor turns on
 
 condition:
   - condition: template
-    value_template: "{{ states.{{ input.lux_sensor }}|float < input.lux_threshold }}" 
+    value_template: >-
+      {{ states.{{ input.lux_sensor }}|float < input.lux_threshold 
+          or states.helper.initial_lux_trigger == 'true' }} 
+      # Check if lux is below threshold OR lights were initially turned on due to lux
 
 action:
-  # Turn on the lights
-  - service: light.turn_on
-    target:
-      entity_id: !input 'lights'
+  - service: homeassistant.turn_on 
+    entity_id: helper.initial_lux_trigger 
+    # Turn on the helper entity to indicate initial lux-based trigger
 
-  # Wait for the delay
+  - service: light.turn_on 
+    target:
+      entity_id: !input 'lights' 
+    # Turn on the specified lights
+
   - delay:
-    seconds: !input 'delay'
+    seconds: !input 'delay' 
+    # Wait for the specified delay period
 
-  # Check if any motion sensor is still active
-  #- condition: state
-  #  entity_id: !input 'sensors'
-  #  state: 'off'
-  #  for:
-  #    seconds: !input 'delay'
+  - service: homeassistant.turn_off 
+    entity_id: helper.initial_lux_trigger 
+    # Turn off the helper entity after delay
 
-  # Turn off the lights
-  - service: light.turn_off
+  - service: light.turn_off 
     target:
-      entity_id: !input 'lights'
+      entity_id: !input 'lights' 
+    # Turn off the specified lights
 
 mode: !input 'mode'
