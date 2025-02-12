@@ -3,8 +3,7 @@ blueprint:
   description: Turn on one or more lights when motion is detected by one or more
     sensors, and turn them off after a delay when no motion is detected for a
     specified time. Brightness can be specified. 
-  author: wesmannmsu (modified)
-  source_url: https://github.com/wesmannmsu/Home-Assistant/blob/main/BluePrints/multi_sensor_motion_light.yaml
+  author: wesmannmsu
   input:
     motion_sensors:
       name: Motion Sensor(s)
