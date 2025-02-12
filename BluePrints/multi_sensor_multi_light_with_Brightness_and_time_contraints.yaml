@@ -18,6 +18,15 @@ blueprint:
         entity:
           domain: light
           multiple: true
+    off_delay:
+      name: Off Delay
+      description: "Time in seconds before turning the lights off after no motion is detected."
+      default: 300
+      selector:
+        number:
+          min: 30
+          max: 3600
+          unit_of_measurement: "seconds"
     start_time:
       name: Start Time
       description: "Time when the automation can start triggering."
@@ -39,15 +48,6 @@ blueprint:
           min: 1
           max: 100
           unit_of_measurement: "%"
-    off_delay:
-      name: Off Delay
-      description: "Time in seconds before turning the lights off after no motion is detected."
-      default: 300
-      selector:
-        number:
-          min: 30
-          max: 3600
-          unit_of_measurement: "seconds"
 
 mode: restart
 trigger:
