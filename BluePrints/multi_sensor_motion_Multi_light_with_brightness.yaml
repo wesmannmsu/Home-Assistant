@@ -4,6 +4,7 @@ blueprint:
     sensors, and turn them off after a delay when no motion is detected for a
     specified time. Brightness can be specified. 
   author: wesmannmsu
+  domain: automation
   input:
     motion_sensors:
       name: Motion Sensor(s)
