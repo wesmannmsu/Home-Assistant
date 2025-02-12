@@ -1,0 +1,79 @@
+blueprint:
+  name: Multi Sensor Motion Light (Multiple Sensors & Lights)
+  description: Turn on one or more lights when motion is detected by one or more
+    sensors, and turn them off after a delay when no motion is detected for a
+    specified time. Brightness can be specified. 
+  author: wesmannmsu (modified)
+  source_url: https://github.com/wesmannmsu/Home-Assistant/blob/main/BluePrints/multi_sensor_motion_light.yaml
+  input:
+    motion_sensors:
+      name: Motion Sensor(s)
+      description: The motion sensor(s) to trigger the light.  Select one or more sensors.
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+          multiple: true  # Allow multiple entities to be selected
+    light_entities:
+      name: Light(s)
+      description: The light(s) to turn on when motion is detected. Select one or more lights.
+      selector:
+        entity:
+          domain: light
+          multiple: true  # Allow multiple entities to be selected
+    no_motion_wait_time:
+      name: No Motion Wait Time
+      description: Time to wait after last motion detected to turn off the light(s).
+      default: 120
+      selector:
+        number:
+          min: 1
+          max: 3600
+          unit_of_measurement: seconds
+    brightness_pct:
+      name: Brightness Percentage
+      description: "Brightness level for the light(s) (default 100%)."
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+
+trigger:
+  - platform: state
+    entity_id: !input motion_sensors
+    to: "on"
+    id: motion_detected
+  - platform: state
+    entity_id: !input motion_sensors
+    from: "on"
+    for:
+      seconds: !input no_motion_wait_time
+    to: "off"
+    id: motion_cleared
+
+action:
+  - choose:
+      - conditions:
+          - trigger: motion_detected
+        sequence:
+          - repeat: # Use repeat to loop through lights
+              for_each: !input light_entities
+              sequence:
+                - service: light.turn_on
+                  target:
+                    entity_id: "{{ repeat.item }}" # Use repeat.item to target each light
+                  data:
+                    brightness_pct: !input brightness_pct
+      - conditions:
+          - trigger: motion_cleared
+        sequence:
+          - repeat: # Use repeat to loop through lights
+              for_each: !input light_entities
+              sequence:
+                - service: light.turn_off
+                  target:
+                    entity_id: "{{ repeat.item }}" # Use repeat.item to target each light
+mode: restart
