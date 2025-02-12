@@ -80,7 +80,7 @@ condition:
 action:
   - service: light.turn_on
     target: !input light_entities
-    data_template:
+    data_template: >
       {% if brightness_level %}
       brightness_pct: "{{ brightness_level }}"
       {% endif %}
