@@ -1,8 +1,9 @@
 blueprint:
-  name: Multi Sensor Motion Light with Time Range and Brightness
+  name: Multi Sensor Motion Light with Time Range, Brightness and Sensor Condition
   description: >
     Turns on one or more lights when motion is detected on one or more sensors.
-    Optionally only activates during a specific time range and allows setting brightness.
+    Optionally only activates during a specific time range, allows setting brightness,
+    and only activates if another sensor's value is below a threshold.
   domain: automation
   input:
     motion_sensors:
@@ -55,6 +56,24 @@ blueprint:
           unit_of_measurement: "%"
           mode: slider
       advanced: true
+    condition_sensor:
+      name: Condition Sensor (Optional)
+      description: "Optional sensor to check for a value below threshold before turning on lights (e.g., LUX sensor)."
+      default: ""
+      selector:
+        entity:
+          domain: sensor # You can refine this further if needed, e.g., device_class: illuminance for LUX
+      advanced: true
+    condition_sensor_value_threshold:
+      name: Condition Sensor Threshold (Optional)
+      description: "Threshold value for the condition sensor. Lights turn on only if sensor value is below this. Required if Condition Sensor is set."
+      default: ""
+      selector:
+        number:
+          min: 0 # Adjust min/max as needed based on typical sensor values
+          max: 10000 # Example max, adjust as needed
+          step: 1
+      advanced: true
 
 # Trigger: Motion detected on any of the selected motion sensors
 trigger:
@@ -62,28 +81,36 @@ trigger:
     entity_id: !input motion_sensors
     to: "on"
 
-# Condition: Optional Time Range
+# Condition: Time Range AND Sensor Condition (if defined)
 condition:
   - condition: and
     conditions:
-      - condition: or # Check if EITHER time range is NOT defined (always active) OR if current time is within range
+      - condition: or  # Time Range Condition (Optional)
         conditions:
           - condition: template
             value_template: "{{ not time_range_start or not time_range_end }}" # Time range NOT defined (always active)
           - condition: time
             after: !input time_range_start
             before: !input time_range_end
-      - condition: trigger
+      - condition: or  # Sensor Condition (Optional)
+        conditions:
+          - condition: template
+            value_template: "{{ not condition_sensor }}" # Condition Sensor NOT defined (always activate based on motion and time range)
+          - condition: numeric_state
+            entity_id: !input condition_sensor
+            below: !input condition_sensor_value_threshold
+      - condition: trigger # <--- Indentation Adjusted
         id: motion # Ensure the trigger is motion
+
 
 # Action: Turn on the lights and then turn them off after a delay
 action:
   - service: light.turn_on
     target: !input light_entities
     data_template:
-      {% if brightness_level %}
-      brightness_pct: "{{ brightness_level }}"
-      {% endif %}
+      {% if inputs.brightness_level %} # <--- Using inputs.brightness_level and Re-indented
+      brightness_pct: "{{ inputs.brightness_level }}" # <--- Using inputs.brightness_level and Re-indented
+      {% endif %} # <--- Re-indented
   - wait_for_trigger:
       - platform: state
         entity_id: !input motion_sensors
@@ -94,4 +121,3 @@ action:
     target: !input light_entities
     data: {}
 mode: restart
-</code>
