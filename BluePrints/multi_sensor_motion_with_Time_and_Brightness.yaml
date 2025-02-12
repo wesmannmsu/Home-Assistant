@@ -101,16 +101,12 @@ condition:
             below: !input condition_sensor_value_threshold
       - condition: trigger # <--- Indentation Adjusted
         id: motion # Ensure the trigger is motion
-
-
 # Action: Turn on the lights and then turn them off after a delay
 action:
   - service: light.turn_on
     target: !input light_entities
     data_template:
-      {% if inputs.brightness_level %} # <--- Using inputs.brightness_level and Re-indented
-      brightness_pct: "{{ inputs.brightness_level }}" # <--- Using inputs.brightness_level and Re-indented
-      {% endif %} # <--- Re-indented
+      brightness_pct: "{{ brightness_level | default(100) }}" # Set brightness, defaults to 100% if brightness_level is empty
   - wait_for_trigger:
       - platform: state
         entity_id: !input motion_sensors
