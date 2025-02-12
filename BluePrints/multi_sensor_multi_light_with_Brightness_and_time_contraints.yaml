@@ -1,7 +1,7 @@
 blueprint:
   name: Motion Sensor(s) Controlling Mult Light(s) with Brightness and Time Constraints
   author: wesmannmsu
-  description: "Control multiple lights based on motion sensors with brightness adjustment."
+  description: "Control multiple lights based on motion sensors with brightness adjustment with Time Constraints"
   domain: automation
   input:
     motion_sensors:
