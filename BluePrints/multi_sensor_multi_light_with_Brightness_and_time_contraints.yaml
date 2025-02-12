@@ -32,7 +32,7 @@ blueprint:
     brightness:
       name: Brightness
       description: "Brightness level for the lights."
-      default: 255
+      default: 100
       selector:
         number:
           min: 1
