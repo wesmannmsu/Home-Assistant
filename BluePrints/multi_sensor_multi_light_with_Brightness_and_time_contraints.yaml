@@ -1,7 +1,7 @@
 blueprint:
-  name: Motion Sensor(s) Controlling Mult Light(s) with Brightness and Time Constraints
-  author: wesmannmsu
-  description: "Control multiple lights based on motion sensors with brightness adjustment with Time Constraints"
+  name: Multi Sensor Motion Multi Light with Brightness
+  author: "Wesley Varela"
+  description: "Control multiple lights based on motion sensors with brightness adjustment."
   domain: automation
   input:
     motion_sensors:
@@ -32,13 +32,22 @@ blueprint:
         time: {}
     brightness:
       name: Brightness
-      description: "Brightness level for the lights."
+      description: "Brightness level for the lights (1-100%)."
       default: 100
       selector:
         number:
           min: 1
-          max: 255
+          max: 100
           unit_of_measurement: "%"
+    off_delay:
+      name: Off Delay
+      description: "Time in seconds before turning the lights off after no motion is detected."
+      default: 300
+      selector:
+        number:
+          min: 30
+          max: 3600
+          unit_of_measurement: "seconds"
 
 mode: restart
 trigger:
@@ -56,4 +65,8 @@ action:
     target:
       entity_id: !input lights
     data:
-      brightness: !input brightness
+      brightness_pct: !input brightness
+  - delay: "{{ !input off_delay }}"
+  - service: light.turn_off
+    target:
+      entity_id: !input lights
