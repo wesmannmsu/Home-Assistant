@@ -66,7 +66,8 @@ action:
       entity_id: !input lights
     data:
       brightness_pct: !input brightness
-  - delay: "{{ !input off_delay }}"
+  - delay: 
+      seconds: !input off_delay
   - service: light.turn_off
     target:
       entity_id: !input lights
