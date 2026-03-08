@@ -1,0 +1,204 @@
+blueprint:
+  name: Harmony Remote - Multi-Press Webhook Detection
+  description: >
+    Detects single, double, triple+, and long press events from a Logitech
+    Harmony remote via two HA webhooks. Uses a wait_for_trigger repeat loop
+    running in 'single' mode so subsequent presses are caught by the already-
+    running instance rather than spawning new ones.
+
+    HOW IT WORKS:
+      The short-press webhook fires on every button tap. The automation runs
+      in single mode, so the 2nd and 3rd taps are absorbed by the running
+      instance's wait_for_trigger rather than starting new instances. After
+      each wait, if no new press arrived within the timeout, repeat.index
+      tells us the total press count:
+        index 2 = single press
+        index 3 = double press
+        index >= 4 = triple or more
+
+      The long-press webhook bypasses the loop entirely and runs its action
+      immediately.
+
+    SETUP IN HARMONY:
+      Create two Harmony activities (or button assignments):
+        - Short press: sends a GET request to your HA webhook (short_press_webhook_id)
+        - Long press:  sends a GET request to your HA webhook (long_press_webhook_id)
+
+    NOTE ON WEBHOOK IDs:
+      Webhook IDs should be long random strings for security. HA will generate
+      these for you when you use the webhook trigger in the UI, or you can
+      supply your own. They must match exactly what Harmony is configured to call.
+
+  domain: automation
+  author: wesmannmsu
+  source_url: https://github.com/wesmannmsu/Home-Assistant/blob/main/BluePrints/multi_sensor_motion_light.yaml
+
+  input:
+
+    short_press_webhook_id:
+      name: Short Press Webhook ID
+      description: >
+        The webhook ID that your Harmony remote calls for a short (normal) button
+        press. This same webhook ID is used inside the repeat loop to catch
+        additional presses. Must match exactly what Harmony sends.
+      selector:
+        text:
+
+    long_press_webhook_id:
+      name: Long Press Webhook ID
+      description: >
+        The webhook ID that your Harmony remote calls for a long button press.
+        This trigger bypasses the press-counting loop entirely and runs the
+        long press action immediately.
+      selector:
+        text:
+
+    press_timeout:
+      name: Press Detection Timeout (seconds)
+      description: >
+        How long to wait for another press before deciding the count is final.
+        2 seconds is recommended — long enough to feel natural, short enough
+        that the automation doesn't feel sluggish.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 5
+          unit_of_measurement: seconds
+
+    single_press_action:
+      name: Single Press Action
+      description: Action(s) to run when exactly one press is detected.
+      default: []
+      selector:
+        action:
+
+    double_press_action:
+      name: Double Press Action
+      description: Action(s) to run when exactly two presses are detected.
+      default: []
+      selector:
+        action:
+
+    triple_press_action:
+      name: Triple+ Press Action
+      description: Action(s) to run when three or more presses are detected.
+      default: []
+      selector:
+        action:
+
+    long_press_action:
+      name: Long Press Action
+      description: >
+        Action(s) to run immediately when the long press webhook fires.
+        This bypasses the press-counting loop entirely.
+      default: []
+      selector:
+        action:
+
+
+# ─────────────────────────────────────────────
+# MODE: single is critical.
+# It ensures that the 2nd and 3rd button presses
+# are caught by the already-running instance's
+# wait_for_trigger, not by spawning new instances.
+# ─────────────────────────────────────────────
+mode: single
+
+
+trigger:
+
+  - id: short_press
+    alias: "Short press webhook — enters multi-press detection loop"
+    platform: webhook
+    webhook_id: !input short_press_webhook_id
+    allowed_methods:
+      - GET
+    local_only: true
+
+  - id: long_press
+    alias: "Long press webhook — bypasses loop, fires action immediately"
+    platform: webhook
+    webhook_id: !input long_press_webhook_id
+    allowed_methods:
+      - GET
+    local_only: true
+
+
+action:
+
+  - alias: "ROUTE: Branch based on which webhook fired"
+    choose:
+
+      # ─────────────────────────────────────────────
+      # LONG PRESS BRANCH
+      # Fires immediately — no loop, no waiting.
+      # ─────────────────────────────────────────────
+      - alias: "LONG PRESS: Execute long press action directly"
+        conditions:
+          - condition: trigger
+            id: long_press
+        sequence: !input long_press_action
+
+      # ─────────────────────────────────────────────
+      # SHORT PRESS BRANCH
+      # Enters the repeat loop to count presses.
+      # ─────────────────────────────────────────────
+      - alias: "SHORT PRESS: Enter multi-press detection loop"
+        conditions:
+          - condition: trigger
+            id: short_press
+        sequence:
+
+          - alias: >
+              LOOP: Repeat up to 4 times — one iteration per possible
+              additional press. Each iteration waits for the timeout.
+              When it expires without a new press, repeat.index tells
+              us how many total presses occurred.
+            repeat:
+              count: 4
+              sequence:
+
+                - alias: "WAIT: Listen for another press within the timeout window"
+                  wait_for_trigger:
+                    - platform: webhook
+                      webhook_id: !input short_press_webhook_id
+                      allowed_methods:
+                        - GET
+                      local_only: true
+                  timeout:
+                    seconds: !input press_timeout
+                  continue_on_timeout: true
+
+                - alias: "CHECK: Did the wait expire without a new press?"
+                  if:
+                    - condition: template
+                      value_template: "{{ not wait.trigger }}"
+                  then:
+
+                    - alias: "ROUTE: Choose action based on total press count"
+                      choose:
+
+                        - alias: "SINGLE PRESS — repeat.index == 2"
+                          conditions:
+                            - condition: template
+                              value_template: "{{ repeat.index == 2 }}"
+                          sequence: !input single_press_action
+
+                        - alias: "DOUBLE PRESS — repeat.index == 3"
+                          conditions:
+                            - condition: template
+                              value_template: "{{ repeat.index == 3 }}"
+                          sequence: !input double_press_action
+
+                        - alias: "TRIPLE+ PRESS — repeat.index >= 4"
+                          conditions:
+                            - condition: template
+                              value_template: "{{ repeat.index >= 4 }}"
+                          sequence: !input triple_press_action
+
+                    - alias: >
+                        STOP: Press count is confirmed — exit the repeat loop.
+                        Without this stop, the loop would keep running all 4
+                        iterations even after we already know the press count.
+                      stop: "Press count determined"
